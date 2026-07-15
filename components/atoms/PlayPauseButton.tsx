@@ -1,5 +1,6 @@
+import { faPause, faPlay } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "@/components/atoms/IconButton";
-import { PauseIcon, PlayIcon } from "@/components/atoms/icons";
 
 interface PlayPauseButtonProps {
   isPlaying: boolean;
@@ -19,7 +20,7 @@ export function PlayPauseButton({
       onClick={onToggle}
       className={className}
     >
-      {isPlaying ? <PauseIcon /> : <PlayIcon />}
+      <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} className="h-5 w-5" />
     </IconButton>
   );
 }

@@ -1,5 +1,6 @@
+import { faVolumeHigh, faVolumeXmark } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "@/components/atoms/IconButton";
-import { MuteIcon, VolumeIcon } from "@/components/atoms/icons";
 
 interface MuteButtonProps {
   isMuted: boolean;
@@ -13,7 +14,7 @@ export function MuteButton({ isMuted, onToggle }: MuteButtonProps) {
       pressed={isMuted}
       onClick={onToggle}
     >
-      {isMuted ? <MuteIcon /> : <VolumeIcon />}
+      <FontAwesomeIcon icon={isMuted ? faVolumeXmark : faVolumeHigh} className="h-5 w-5" />
     </IconButton>
   );
 }

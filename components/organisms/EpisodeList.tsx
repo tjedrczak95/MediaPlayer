@@ -44,8 +44,8 @@ export function EpisodeList({
   return (
     <div className="flex flex-col gap-4">
       <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {episodes.map((episode) => (
-          <EpisodeCard key={episode.id} episode={episode} />
+        {episodes.map((episode, index) => (
+          <EpisodeCard key={episode.id} episode={episode} priority={index === 0} />
         ))}
       </ul>
 

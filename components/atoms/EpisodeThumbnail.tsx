@@ -7,9 +7,10 @@ import { Spinner } from "@/components/atoms/Spinner";
 interface EpisodeThumbnailProps {
   src: string | null;
   alt: string;
+  priority?: boolean;
 }
 
-export function EpisodeThumbnail({ src, alt }: EpisodeThumbnailProps) {
+export function EpisodeThumbnail({ src, alt, priority = false }: EpisodeThumbnailProps) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
@@ -28,6 +29,7 @@ export function EpisodeThumbnail({ src, alt }: EpisodeThumbnailProps) {
             sizes="(min-width: 1024px) 12vw, (min-width: 640px) 30vw, 100vw"
             className={`object-cover transition-opacity ${isLoaded ? "opacity-100" : "opacity-0"}`}
             onLoad={() => setIsLoaded(true)}
+            priority={priority}
           />
         </>
       ) : (

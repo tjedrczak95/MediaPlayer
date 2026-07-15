@@ -1,5 +1,6 @@
+import { faHeadphones, faVideo } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "@/components/atoms/IconButton";
-import { AudioIcon, VideoIcon } from "@/components/atoms/icons";
 import type { MediaType } from "@/lib/types";
 
 const LABELS: Record<MediaType, string> = {
@@ -20,7 +21,7 @@ export function FormatToggleButton({
 }: FormatToggleButtonProps) {
   return (
     <IconButton label={LABELS[format]} pressed={active} onClick={onClick}>
-      {format === "audio" ? <AudioIcon /> : <VideoIcon />}
+      <FontAwesomeIcon icon={format === "audio" ? faHeadphones : faVideo} className="h-5 w-5" />
     </IconButton>
   );
 }
