@@ -15,19 +15,18 @@ export function EpisodeMeta({
   hasVideo,
 }: EpisodeMetaProps) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-500 dark:text-neutral-400">
-      <span className="truncate">{podcastTitle}</span>
-      {durationSeconds !== null && (
-        <>
-          <span aria-hidden="true">·</span>
+    <div className="flex flex-col gap-1 text-sm text-neutral-500 dark:text-neutral-400">
+      <div className="flex items-center gap-x-2">
+        <span className="min-w-0 flex-1 truncate">{podcastTitle}</span>
+        {durationSeconds !== null && (
           <Duration seconds={durationSeconds} />
-        </>
-      )}
-      <span className="flex gap-1">
+        )}
+      </div>
+      <p className="flex gap-1">
         {hasAudio && <FormatBadge kind="audio" />}
         {hasVideo && <FormatBadge kind="video" />}
         {!hasAudio && !hasVideo && <FormatBadge kind="none" />}
-      </span>
+      </p>
     </div>
   );
 }

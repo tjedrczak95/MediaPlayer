@@ -7,7 +7,7 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export const EPISODES_PAGE_SIZE = 20;
+export const EPISODES_PAGE_SIZE = 5;
 
 // Media URIs returned by the API sometimes point at the VPN-gated CMS host
 // instead of the public CDN; swap the host but keep the rest of the URL.

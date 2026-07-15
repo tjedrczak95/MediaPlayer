@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
+import { Spinner } from "@/components/atoms/Spinner";
 
 interface EpisodeThumbnailProps {
   src: string | null;
@@ -6,16 +10,26 @@ interface EpisodeThumbnailProps {
 }
 
 export function EpisodeThumbnail({ src, alt }: EpisodeThumbnailProps) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-800">
       {src ? (
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          sizes="(min-width: 768px) 160px, 96px"
-          className="object-cover"
-        />
+        <>
+          {!isLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Spinner label="Wczytywanie miniatury" />
+            </div>
+          )}
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes="(min-width: 1024px) 12vw, (min-width: 640px) 30vw, 100vw"
+            className={`object-cover transition-opacity ${isLoaded ? "opacity-100" : "opacity-0"}`}
+            onLoad={() => setIsLoaded(true)}
+          />
+        </>
       ) : (
         <div
           aria-hidden="true"
