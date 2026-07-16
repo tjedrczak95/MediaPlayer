@@ -1,6 +1,11 @@
 import { EpisodeList } from "@/components/organisms/EpisodeList";
 import { EPISODES_PAGE_SIZE, fetchEpisodes } from "@/lib/api";
 
+// The episode list depends on a live, VPN-gated API, so it can never be
+// prerendered at build time (e.g. Docker builds don't have network access
+// to it) — force this page to render per-request instead.
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const firstPage = await fetchEpisodes(1, EPISODES_PAGE_SIZE);
   const secondPage = firstPage.totalPages > 1 ? await fetchEpisodes(2, EPISODES_PAGE_SIZE) : null;
