@@ -1,9 +1,4 @@
-import type {
-  EpisodesResponse,
-  MediaAsset,
-  MediaAssetResponse,
-  MediaType,
-} from "./types";
+import type { EpisodesResponse, MediaAsset, MediaAssetResponse, MediaType } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -64,10 +59,7 @@ export async function fetchEpisodes(
   );
 }
 
-export async function fetchMediaAsset(
-  type: MediaType,
-  externalId: string,
-): Promise<MediaAsset> {
+export async function fetchMediaAsset(type: MediaType, externalId: string): Promise<MediaAsset> {
   const { data } = await apiFetch<MediaAssetResponse>(`/${type}/${externalId}`);
 
   return {

@@ -12,11 +12,7 @@ interface EpisodeListProps {
   totalPages: number;
 }
 
-export function EpisodeList({
-  initialEpisodes,
-  initialPageNumber,
-  totalPages,
-}: EpisodeListProps) {
+export function EpisodeList({ initialEpisodes, initialPageNumber, totalPages }: EpisodeListProps) {
   const [episodes, setEpisodes] = useState(initialEpisodes);
   const [pageNumber, setPageNumber] = useState(initialPageNumber);
   const [error, setError] = useState<string | null>(null);

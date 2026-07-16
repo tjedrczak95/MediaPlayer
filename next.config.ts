@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  allowedDevOrigins: ["*.ngrok-free.dev", "*.ngrok-free.app"],
   images: {
     remotePatterns: [
       {
@@ -9,6 +10,7 @@ const nextConfig: NextConfig = {
         hostname: "*.polskieradio.pl",
       },
     ],
+    contentDispositionType: "inline",
   },
 };
 

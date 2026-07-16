@@ -32,19 +32,23 @@ export function usePlayerEngine() {
   // switches episode/format again before the previous fetch resolves.
   const requestIdRef = useRef(0);
 
-  async function loadMedia(targetEpisode: EpisodeRm, targetFormat: MediaType) {
+  // Carries the playback position across a format switch: applied once the
+  // new source's metadata loads, since the browser resets currentTime on
+  // its own as soon as the <video> element's src changes.
+  const resumeTimeRef = useRef(0);
+
+  async function loadMedia(targetEpisode: EpisodeRm, targetFormat: MediaType, resumeTime = 0) {
     const externalId =
-      targetFormat === "audio"
-        ? targetEpisode.externalAudioId
-        : targetEpisode.externalVideoId;
+      targetFormat === "audio" ? targetEpisode.externalAudioId : targetEpisode.externalVideoId;
     if (!externalId) return;
 
     const requestId = ++requestIdRef.current;
+    resumeTimeRef.current = resumeTime;
     setStatus("loading");
     setErrorMessage(null);
     setPlaybackError(false);
     setAsset(null);
-    setCurrentTime(0);
+    setCurrentTime(resumeTime);
     setDuration(0);
 
     try {
@@ -75,7 +79,13 @@ export function usePlayerEngine() {
     if (!el) return;
 
     const handleTimeUpdate = () => setCurrentTime(el.currentTime);
-    const handleLoadedMetadata = () => setDuration(el.duration || 0);
+    const handleLoadedMetadata = () => {
+      setDuration(el.duration || 0);
+      if (resumeTimeRef.current > 0) {
+        el.currentTime = resumeTimeRef.current;
+        resumeTimeRef.current = 0;
+      }
+    };
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleError = () => {
@@ -147,11 +157,11 @@ export function usePlayerEngine() {
 
   function switchFormat(nextFormat: MediaType) {
     if (!episode || nextFormat === format) return;
-    const externalId =
-      nextFormat === "audio" ? episode.externalAudioId : episode.externalVideoId;
+    const externalId = nextFormat === "audio" ? episode.externalAudioId : episode.externalVideoId;
     if (!externalId) return;
+    const resumeTime = videoRef.current?.currentTime ?? currentTime;
     setFormat(nextFormat);
-    loadMedia(episode, nextFormat);
+    loadMedia(episode, nextFormat, resumeTime);
   }
 
   function close() {

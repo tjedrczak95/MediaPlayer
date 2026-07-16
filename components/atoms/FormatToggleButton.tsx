@@ -14,14 +14,10 @@ interface FormatToggleButtonProps {
   onClick: () => void;
 }
 
-export function FormatToggleButton({
-  format,
-  active,
-  onClick,
-}: FormatToggleButtonProps) {
+export function FormatToggleButton({ format, active, onClick }: FormatToggleButtonProps) {
   return (
     <IconButton label={LABELS[format]} pressed={active} onClick={onClick}>
-      <FontAwesomeIcon icon={format === "audio" ? faHeadphones : faVideo} className="h-5 w-5" />
+      <FontAwesomeIcon icon={format === "audio" ? faHeadphones : faVideo} className="size-5" />
     </IconButton>
   );
 }

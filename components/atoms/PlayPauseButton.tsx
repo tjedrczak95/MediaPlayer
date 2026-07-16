@@ -8,11 +8,7 @@ interface PlayPauseButtonProps {
   className?: string;
 }
 
-export function PlayPauseButton({
-  isPlaying,
-  onToggle,
-  className,
-}: PlayPauseButtonProps) {
+export function PlayPauseButton({ isPlaying, onToggle, className }: PlayPauseButtonProps) {
   return (
     <IconButton
       label={isPlaying ? "Pauza" : "Odtwórz"}
@@ -20,7 +16,7 @@ export function PlayPauseButton({
       onClick={onToggle}
       className={className}
     >
-      <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} className="h-5 w-5" />
+      <FontAwesomeIcon icon={isPlaying ? faPause : faPlay} className="size-5" />
     </IconButton>
   );
 }

@@ -18,9 +18,7 @@ export function EpisodeMeta({
     <div className="flex flex-col gap-1 text-sm text-neutral-500 dark:text-neutral-400">
       <div className="flex items-center gap-x-2">
         <span className="min-w-0 flex-1 truncate">{podcastTitle}</span>
-        {durationSeconds !== null && (
-          <Duration seconds={durationSeconds} />
-        )}
+        {durationSeconds !== null && <Duration seconds={durationSeconds} />}
       </div>
       <p className="flex gap-1">
         {hasAudio && <FormatBadge kind="audio" />}

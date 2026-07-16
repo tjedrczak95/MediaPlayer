@@ -35,8 +35,11 @@ export function EpisodeCard({ episode, priority = false }: EpisodeCardProps) {
           priority={priority}
         />
         <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 transition-colors group-hover:bg-black/40">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-black/80">
-            <FontAwesomeIcon icon={faPlay} className="h-5 w-5 translate-x-0.5 text-black dark:text-white" />
+          <span className="flex size-12 items-center justify-center rounded-full bg-white/90 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-black/80">
+            <FontAwesomeIcon
+              icon={faPlay}
+              className="size-5 translate-x-0.5 text-black dark:text-white"
+            />
           </span>
         </span>
       </button>

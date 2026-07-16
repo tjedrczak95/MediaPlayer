@@ -14,7 +14,7 @@ export function MuteButton({ isMuted, onToggle }: MuteButtonProps) {
       pressed={isMuted}
       onClick={onToggle}
     >
-      <FontAwesomeIcon icon={isMuted ? faVolumeXmark : faVolumeHigh} className="h-5 w-5" />
+      <FontAwesomeIcon icon={isMuted ? faVolumeXmark : faVolumeHigh} className="size-5" />
     </IconButton>
   );
 }

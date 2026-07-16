@@ -37,7 +37,7 @@ export function EpisodeThumbnail({ src, alt, priority = false }: EpisodeThumbnai
           aria-hidden="true"
           className="flex h-full items-center justify-center text-neutral-400 dark:text-neutral-600"
         >
-          <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8">
+          <svg viewBox="0 0 24 24" fill="none" className="size-8">
             <path
               d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
               stroke="currentColor"
