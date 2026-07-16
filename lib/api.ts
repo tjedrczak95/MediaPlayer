@@ -4,8 +4,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export const EPISODES_PAGE_SIZE = 5;
 
-// Media URIs returned by the API sometimes point at the VPN-gated CMS host
-// instead of the public CDN; swap the host but keep the rest of the URL.
 const PRIVATE_MEDIA_HOST = "dev-cms-gateway.polskieradio.pl";
 const PUBLIC_MEDIA_HOST = "cdn6.polskieradio.pl";
 

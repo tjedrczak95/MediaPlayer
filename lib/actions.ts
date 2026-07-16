@@ -4,8 +4,7 @@ import { fetchEpisodes, fetchMediaAsset } from "@/lib/api";
 import type { EpisodesResponse, MediaAsset, MediaType } from "@/lib/types";
 
 // Client components call these instead of lib/api.ts directly so the actual
-// request to the (VPN-gated) CMS host always runs on the server, regardless
-// of which device the browser is on.
+// request to the (VPN-gated) CMS host always runs on the server
 
 export async function loadEpisodesAction(
   pageNumber: number,

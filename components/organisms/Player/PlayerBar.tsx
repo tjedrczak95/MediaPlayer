@@ -76,8 +76,6 @@ export function PlayerBar({
   useEffect(() => {
     if (!isFullscreen) return;
 
-    // In fullscreen the bar overlays the video: keep it visible while the
-    // cursor is near the bottom edge, hide it once the cursor moves away.
     const revealZonePx = 120;
     function handleMouseMove(event: MouseEvent) {
       const distanceFromBottom = window.innerHeight - event.clientY;

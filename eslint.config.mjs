@@ -15,12 +15,8 @@ const eslintConfig = defineConfig([
       },
     },
   },
-  // Must stay last: turns off stylistic rules that would otherwise fight
-  // with Prettier's formatting.
   eslintConfigPrettier,
-  // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
