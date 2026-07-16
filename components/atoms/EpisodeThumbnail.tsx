@@ -7,9 +7,10 @@ import { Spinner } from "@/components/atoms/Spinner";
 interface EpisodeThumbnailProps {
   src: string | null;
   alt: string;
+  priority?: boolean;
 }
 
-export function EpisodeThumbnail({ src, alt }: EpisodeThumbnailProps) {
+export function EpisodeThumbnail({ src, alt, priority = false }: EpisodeThumbnailProps) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
@@ -28,6 +29,7 @@ export function EpisodeThumbnail({ src, alt }: EpisodeThumbnailProps) {
             sizes="(min-width: 1024px) 12vw, (min-width: 640px) 30vw, 100vw"
             className={`object-cover transition-opacity ${isLoaded ? "opacity-100" : "opacity-0"}`}
             onLoad={() => setIsLoaded(true)}
+            priority={priority}
           />
         </>
       ) : (
@@ -35,7 +37,7 @@ export function EpisodeThumbnail({ src, alt }: EpisodeThumbnailProps) {
           aria-hidden="true"
           className="flex h-full items-center justify-center text-neutral-400 dark:text-neutral-600"
         >
-          <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8">
+          <svg viewBox="0 0 24 24" fill="none" className="size-8">
             <path
               d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
               stroke="currentColor"
