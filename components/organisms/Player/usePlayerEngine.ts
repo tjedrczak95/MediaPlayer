@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fetchMediaAsset } from "@/lib/api";
+import { loadMediaAssetAction } from "@/lib/actions";
 import type { EpisodeRm, MediaAsset, MediaType } from "@/lib/types";
 
 export type PlayerStatus = "idle" | "loading" | "ready" | "error";
@@ -52,7 +52,7 @@ export function usePlayerEngine() {
     setDuration(0);
 
     try {
-      const result = await fetchMediaAsset(targetFormat, externalId);
+      const result = await loadMediaAssetAction(targetFormat, externalId);
       if (requestIdRef.current !== requestId) return;
       setAsset(result);
       setStatus("ready");

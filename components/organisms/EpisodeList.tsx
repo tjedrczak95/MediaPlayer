@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { Spinner } from "@/components/atoms/Spinner";
 import { EpisodeCard } from "@/components/organisms/EpisodeCard";
-import { EPISODES_PAGE_SIZE, fetchEpisodes } from "@/lib/api";
+import { loadEpisodesAction } from "@/lib/actions";
+import { EPISODES_PAGE_SIZE } from "@/lib/api";
 import type { EpisodeRm } from "@/lib/types";
 
 interface EpisodeListProps {
@@ -24,7 +25,7 @@ export function EpisodeList({ initialEpisodes, initialPageNumber, totalPages }: 
     setError(null);
     startTransition(async () => {
       try {
-        const next = await fetchEpisodes(pageNumber + 1, EPISODES_PAGE_SIZE);
+        const next = await loadEpisodesAction(pageNumber + 1, EPISODES_PAGE_SIZE);
         setEpisodes((prev) => [...prev, ...next.data]);
         setPageNumber(next.pageNumber);
       } catch {
