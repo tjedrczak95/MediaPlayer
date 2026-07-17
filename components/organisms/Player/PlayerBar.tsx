@@ -1,4 +1,9 @@
-import { faCompress, faExpand, faXmark } from "@fortawesome/free-solid-svg-icons";
+import {
+  faClosedCaptioning,
+  faCompress,
+  faExpand,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
 import { type RefObject, useEffect, useRef, useState } from "react";
@@ -56,11 +61,68 @@ export function PlayerBar({
 }: PlayerBarProps) {
   const hasAudio = Boolean(episode?.externalAudioId);
   const hasVideo = Boolean(episode?.externalVideoId);
-  const isVideoVisible = format === "video" && status === "ready" && !playbackError;
+  const isReady = status === "ready" && !playbackError;
+  const isVideoVisible = format === "video" && isReady;
+  const vttUri = asset?.transcription?.vttUri;
+  const hasCaptions = Boolean(vttUri) && isReady;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLTrackElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isBarHidden, setIsBarHidden] = useState(false);
+  const [captionsEnabled, setCaptionsEnabled] = useState(false);
+  const [cueText, setCueText] = useState<string | null>(null);
+  const [captionsFailed, setCaptionsFailed] = useState(false);
+
+  // <track> has no React prop for live on/off — the browser only reads
+  // `default` once, on mount — so toggling has to go through the TextTrack
+  // API directly.
+  useEffect(() => {
+    const track = trackRef.current?.track;
+    if (!track) return;
+    track.mode = captionsEnabled ? "showing" : "hidden";
+  }, [captionsEnabled, vttUri]);
+
+  // The <track> element fires `error` if the .vtt fails to fetch (wrong
+  // path, CORS, 404 — this API has served all three). Without watching for
+  // it, toggling captions on a broken track just does nothing, silently.
+  useEffect(() => {
+    const trackEl = trackRef.current;
+    if (!trackEl) return;
+
+    function handleError() {
+      setCaptionsFailed(true);
+    }
+
+    trackEl.addEventListener("error", handleError);
+    return () => {
+      trackEl.removeEventListener("error", handleError);
+      setCaptionsFailed(false);
+    };
+  }, [vttUri]);
+
+  // Cue text is tracked independently of native <track> rendering: the
+  // <video> element is only visually hidden (not disabled) in audio mode
+  // (see README "Jeden <video> zamiast <audio> + <video>"), so cues still
+  // parse and fire cuechange, but there's no rendered video box for the
+  // browser to burn them onto — audio mode needs its own text display.
+  useEffect(() => {
+    const track = trackRef.current?.track;
+    if (!track) return;
+
+    function handleCueChange() {
+      const activeCues = track?.activeCues;
+      if (!activeCues || activeCues.length === 0) {
+        setCueText(null);
+        return;
+      }
+      setCueText(Array.from(activeCues, (cue) => (cue as VTTCue).text).join("\n"));
+    }
+
+    track.addEventListener("cuechange", handleCueChange);
+    handleCueChange();
+    return () => track.removeEventListener("cuechange", handleCueChange);
+  }, [vttUri]);
 
   useEffect(() => {
     function handleFullscreenChange() {
@@ -119,6 +181,7 @@ export function PlayerBar({
           ref={videoRef}
           src={asset?.uri}
           playsInline
+          crossOrigin={vttUri ? "anonymous" : undefined}
           className={
             isVideoVisible
               ? isFullscreen
@@ -126,7 +189,11 @@ export function PlayerBar({
                 : "mx-auto block aspect-video max-h-[calc(100vh-6rem)] max-w-[92%] bg-black"
               : "hidden"
           }
-        />
+        >
+          {vttUri && (
+            <track ref={trackRef} kind="subtitles" src={vttUri} srcLang="pl" label="Polski" />
+          )}
+        </video>
 
         {episode && (
           <div
@@ -138,6 +205,21 @@ export function PlayerBar({
                 : "flex w-full flex-col gap-2 p-3"
             }
           >
+            {captionsEnabled && captionsFailed && (
+              <p role="alert" className="text-center text-base text-red-600 dark:text-red-400">
+                Nie udało się wczytać napisów.
+              </p>
+            )}
+
+            {captionsEnabled && !captionsFailed && !isVideoVisible && cueText && (
+              <p
+                aria-live="polite"
+                className="text-center text-2xl whitespace-pre-line text-neutral-700 dark:text-neutral-300"
+              >
+                {cueText}
+              </p>
+            )}
+
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <div className="flex min-w-0 items-center gap-3 sm:flex-1">
                 <div className="w-12 shrink-0">
@@ -206,6 +288,16 @@ export function PlayerBar({
                     onVolumeChange={onVolumeChange}
                     onToggleMute={onToggleMute}
                   />
+                )}
+
+                {hasCaptions && (
+                  <IconButton
+                    label={captionsEnabled ? "Wyłącz napisy" : "Włącz napisy"}
+                    pressed={captionsEnabled}
+                    onClick={() => setCaptionsEnabled((enabled) => !enabled)}
+                  >
+                    <FontAwesomeIcon icon={faClosedCaptioning} className="size-5" />
+                  </IconButton>
                 )}
 
                 {isVideoVisible && (

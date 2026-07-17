@@ -29,6 +29,22 @@ export function toPublicMediaUrl(uri: string): string {
   }
 }
 
+// The CMS API returns transcription.vttUri without the "/cms/dev" path
+// segment that the audio/video uri itself has, so the file 404s as-is —
+// confirmed against the live CDN that the .vtt only exists at the
+// /cms/dev-prefixed path, same as the media file.
+function fixTranscriptionUrl(uri: string): string {
+  try {
+    const url = new URL(uri);
+    if (!url.pathname.startsWith("/cms/dev/")) {
+      url.pathname = `/cms/dev${url.pathname}`;
+    }
+    return url.toString();
+  } catch {
+    return uri;
+  }
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!API_BASE_URL) {
     throw new ApiError("Missing NEXT_PUBLIC_API_BASE_URL environment variable");
@@ -59,12 +75,13 @@ export async function fetchEpisodes(
 
 export async function fetchMediaAsset(type: MediaType, externalId: string): Promise<MediaAsset> {
   const { data } = await apiFetch<MediaAssetResponse>(`/${type}/${externalId}`);
+  console.log(data);
 
   return {
     ...data,
     uri: toPublicMediaUrl(data.uri),
     transcription: data.transcription?.vttUri
-      ? { vttUri: toPublicMediaUrl(data.transcription.vttUri) }
+      ? { vttUri: toPublicMediaUrl(fixTranscriptionUrl(data.transcription.vttUri)) }
       : data.transcription,
   };
 }

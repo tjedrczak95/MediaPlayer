@@ -32,6 +32,21 @@ Powód: część odcinków ma oba formaty i przełącznik audio↔wideo (`Format
 
 `loadMedia` w `usePlayerEngine.ts` numeruje każdy request licznikiem w `useRef` i po powrocie z `fetch` sprawdza, czy to wciąż najnowszy request — jeśli nie (użytkownik zdążył kliknąć inny odcinek/format), wynik jest ignorowany. Zabezpiecza to przed nadpisaniem stanu playera przez odpowiedź ze starszego, wolniejszego requestu.
 
+### Napisy WebVTT dla audio i wideo
+
+`asset.transcription.vttUri` (zwracane przez `fetchMediaAsset`, `lib/api.ts`) trafia do `<track kind="subtitles">` wewnątrz `<video>` w `PlayerBar.tsx`, sterowanego przyciskiem CC.
+
+- `<video>` ma `crossOrigin="anonymous"`, gdy odcinek ma napisy. Bez tego przeglądarka w ogóle blokuje wczytanie `<track>` z innej domeny niż strona (mimo że CDN wysyła `Access-Control-Allow-Origin: *`) — to osobne ograniczenie od zwykłego CORS na `fetch`, dotyczące konkretnie elementów `<track>`/`<video>`.
+- W trybie wideo napisy renderują się natywnie (`track.mode = "showing"`) jako nakładka na obrazie.
+- W trybie audio `<video>` jest tylko wizualnie ukryty, nie wyłączony (patrz sekcja "Jeden `<video>`..." wyżej) — cue'y nadal się parsują i odpalają `cuechange`, ale nie ma widocznego boksu wideo, na którym przeglądarka mogłaby je wypalić. Dlatego audio ma własny listener `cuechange` na `TextTrack`, który wyświetla aktualną linię transkrypcji jako duży tekst nad paskiem kontrolek.
+- Błąd wczytania `.vtt` (404, CORS, zły host) jest wykrywany przez event `error` na `<track>` i pokazywany jako komunikat (`role="alert"`) zamiast ciszy — przycisk CC bez tego wyglądałby na działający, a po kliknięciu nic by się nie działo.
+
+### Naprawiona ścieżka `vttUri` z API
+
+Testowe API systematycznie zwraca `transcription.vttUri` bez segmentu `/cms/dev/`, który mają `uri` samych plików audio/wideo (np. `.../audio/all/{id}/transcription.vtt` zamiast `.../cms/dev/audio/all/{id}/transcription.vtt`). Plik pod błędną ścieżką odpowiada 404; pod poprawioną — 200 z realną treścią VTT (zweryfikowane bezpośrednio na CDN, i dla audio, i dla wideo).
+
+`fixTranscriptionUrl` w `lib/api.ts` wstawia brakujący segment przed zamianą hosta na publiczny CDN (`toPublicMediaUrl`). To błąd danych po stronie backendu CMS, nie tego repo — warto zgłosić zespołowi API; poprawka we froncie jest tymczasowym obejściem.
+
 ### Znany problem: niektóre odcinki się nie odtwarzają (świadomie nienaprawiony)
 
 Dwa pierwsze odcinki (podcast "Lata 20-ste") zwracają z testowego API plik `audio.wav` (46 MB), który nie odtwarza się w żadnej przeglądarce — kończy się na istniejącym stanie „błąd odtwarzania".
