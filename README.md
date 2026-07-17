@@ -1,24 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Odtwarzacz odcinków (audio/wideo) w Next.js, zasilany danymi z CMS Polskiego Radia.
 
-## Getting Started
+## Uruchomienie
 
-First, run the development server:
+### Wymagania
+
+- Node.js 24 (zob. [`.nvmrc`](.nvmrc))
+- pnpm (wersja spięta w `packageManager`, zob. [`package.json`](package.json))
+
+### Lokalnie
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+cp .env.example .env.local   # jeśli .env.local jeszcze nie istnieje
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Aplikacja wystartuje pod [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Zmienne środowiskowe (zob. [`.env.example`](.env.example)):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `NEXT_PUBLIC_API_BASE_URL` — adres bazowy API CMS (proxy deweloperskie).
+
+### Docker
+
+```bash
+docker build -t mediaplayer .
+docker run -p 3000:3000 mediaplayer
+```
+
+## Architektura
+
+- **Next.js (App Router) + React + TypeScript**, stylowanie Tailwind CSS.
+- **Komponenty wg atomic design** (`components/atoms`, `components/molecules`, `components/organisms`) — od najprostszych elementów UI (`IconButton`, `SeekBar`) przez złożenia (`FormatSwitch`, `VolumeControl`) po całe sekcje (`EpisodeList`, `Player`).
+- **Warstwa danych** (`lib/api.ts`, `lib/types.ts`) izolowana od komponentów: pobieranie listy odcinków (`fetchEpisodes`) i pojedynczego zasobu media (`fetchMediaAsset`), z przepisywaniem prywatnego hosta CDN (`dev-cms-gateway...`) na publiczny (`cdn6...`), żeby zwrócone URI dało się odtworzyć z przeglądarki.
+- **Server Actions jako brama do API** (`lib/actions.ts`) — komponenty klienckie nie wywołują `lib/api.ts` bezpośrednio, tylko przez `"use server"` akcje, bo docelowe API CMS jest zagated VPN-em i request musi wychodzić z serwera.
+- **Player** (`components/organisms/Player/`) — logika odtwarzania wydzielona do hooka `usePlayerEngine.ts`, stan współdzielony przez `PlayerContext.ts`, warstwa prezentacji w `PlayerBar.tsx`.
+
+## Czas poświęcony na zadanie
+
+Ok. 8-10h.
 
 ## Decyzje projektowe
 
@@ -40,17 +60,20 @@ Nagłówek WAV deklaruje `wFormatTag = 0x50` (`WAVE_FORMAT_MPEG`), a sama zawart
 
 Dalsze opcje (dekoder WASM typu ffmpeg.wasm w przeglądarce, albo serwerowy transcoding proxy z realnym `ffmpeg`) są wykonalne, ale nieproporcjonalne do problemu.
 
-## Learn More
+### `force-dynamic` na stronie głównej
 
-To learn more about Next.js, take a look at the following resources:
+`app/page.tsx` wymusza `export const dynamic = "force-dynamic"`, więc strona nie jest prerenderowana w czasie builda, tylko renderowana przy każdym żądaniu.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Powód: lista odcinków zależy od API CMS zagatowanego VPN-em, a build Dockera (etap `builder`) nie ma do niego dostępu — próba prerenderu w czasie builda skończyłaby się błędem fetch. Renderowanie per-request przenosi to wywołanie do środowiska runtime (kontener po starcie), które ma już dostęp do API.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Wstępne wczytanie dwóch stron odcinków
 
-## Deploy on Vercel
+`app/page.tsx` przy SSR pobiera od razu `firstPage` i (jeśli istnieje) `secondPage` — czyli 2×`EPISODES_PAGE_SIZE` (10) odcinków — zamiast tylko pierwszej strony.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Powód: siatka odcinków ma do 5 kolumn (`lg:grid-cols-5`). Jedna strona (5 elementów) wypełniłaby dokładnie jeden rząd, więc od razu po wejściu na stronę widać tylko przycisk „Pokaż więcej” bez żadnego realnego przewijania. Dociągnięcie drugiej strony po stronie serwera daje sensowną wysokość startową (dwa rzędy) bez dodatkowego round-tripu po stronie klienta.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Przenoszenie pozycji odtwarzania przy zmianie formatu (`resumeTimeRef`)
+
+Zmiana formatu (`switchFormat` w `usePlayerEngine.ts`) podmienia `src` elementu `<video>`, a przeglądarka przy takiej podmianie sama zeruje `currentTime` — nie da się tego przechwycić przed faktem. Aktualna pozycja jest więc zapamiętywana w `resumeTimeRef` przed podmianą i przywracana dopiero w handlerze `loadedmetadata` nowego źródła, gdy element jest już gotowy do ustawienia `currentTime`.
+
+Dzięki temu przełączenie audio↔wideo w trakcie odtwarzania nie cofa użytkownika na początek nagrania.
