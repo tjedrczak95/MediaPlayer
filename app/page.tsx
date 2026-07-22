@@ -1,9 +1,13 @@
 import { EpisodeList } from "@/components/organisms/EpisodeList";
 import { EPISODES_PAGE_SIZE, fetchEpisodes } from "@/lib/api";
 
-// The episode list depends on a live, VPN-gated API, so it can never be
-// prerendered at build time (e.g. Docker builds don't have network access
-// to it) — force this page to render per-request instead.
+// Every fetch in lib/api.ts uses cache: "no-store", so this page can never be
+// static anyway. Declared explicitly rather than relying on Next's automatic
+// dynamic-usage detection: that mechanism depends on its internal
+// DYNAMIC_SERVER_USAGE control-flow exception propagating untouched through
+// the whole call path — a single overly-broad try/catch anywhere below (see
+// lib/api.ts) is enough to swallow it and fail the build instead of falling
+// back to dynamic rendering.
 export const dynamic = "force-dynamic";
 
 export default async function Home() {

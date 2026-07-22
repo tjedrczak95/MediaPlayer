@@ -33,7 +33,7 @@ docker run -p 3000:3000 mediaplayer
 - **Next.js (App Router) + React + TypeScript**, stylowanie Tailwind CSS.
 - **Komponenty wg atomic design** (`components/atoms`, `components/molecules`, `components/organisms`) — od najprostszych elementów UI (`IconButton`, `SeekBar`) przez złożenia (`FormatSwitch`, `VolumeControl`) po całe sekcje (`EpisodeList`, `Player`).
 - **Warstwa danych** (`lib/api.ts`, `lib/types.ts`) izolowana od komponentów: pobieranie listy odcinków (`fetchEpisodes`) i pojedynczego zasobu media (`fetchMediaAsset`), z przepisywaniem prywatnego hosta CDN (`dev-cms-gateway...`) na publiczny (`cdn6...`), żeby zwrócone URI dało się odtworzyć z przeglądarki.
-- **Server Actions jako brama do API** (`lib/actions.ts`) — komponenty klienckie nie wywołują `lib/api.ts` bezpośrednio, tylko przez `"use server"` akcje, bo docelowe API CMS jest zagated VPN-em i request musi wychodzić z serwera.
+- **Server Actions jako brama do API** (`lib/actions.ts`) — komponenty klienckie nie wywołują `lib/api.ts` bezpośrednio, tylko przez `"use server"` akcje. Przy Server Action przeglądarka widzi tylko POST do własnej domeny z zakodowanym RSC payloadem — cała topologia integracji z CMS-em jest niewidoczna dla kogokolwiek inspekcjonującego ruch sieciowy.
 - **Player** (`components/organisms/Player/`) — logika odtwarzania wydzielona do hooka `usePlayerEngine.ts`, stan współdzielony przez `PlayerContext.ts`, warstwa prezentacji w `PlayerBar.tsx`.
 
 ## Czas poświęcony na zadanie
@@ -77,11 +77,33 @@ Nagłówek WAV deklaruje `wFormatTag = 0x50` (`WAVE_FORMAT_MPEG`), a sama zawart
 
 Dalsze opcje (dekoder WASM typu ffmpeg.wasm w przeglądarce, albo serwerowy transcoding proxy z realnym `ffmpeg`) są wykonalne, ale nieproporcjonalne do problemu.
 
+### `cache: "no-store"` na każdym fetchu (`lib/api.ts`)
+
+`apiFetch` wywołuje każdy request z `{ cache: "no-store", ...init }` — świadomie, nie tylko dlatego, że to obecny domyślny tryb w Next.js 15+.
+
+Dwa powody: (1) oba endpointy potrzebują świeżości — lista odcinków może dostać nowy/zaktualizowany wpis z CMS-a w dowolnym momencie, a `/audio/{id}`/`/video/{id}` to dokładnie ten endpoint, w którym znaleziono błąd ścieżki `vttUri` (patrz niżej) — jeśli CMS kiedyś to naprawi po swojej stronie, cache'owana odpowiedź sprzed poprawki byłaby myląca. (2) To `no-store` jest tym, co realnie wymusza dynamiczne renderowanie strony — sygnalizuje Next.js, że fetch nie może być cache'owany, co bezpośrednio prowadzi do decyzji o `force-dynamic` opisanej niżej.
+
+Do Next.js 14 `fetch` domyślnie cache'ował się jak `force-cache`, więc ten zapis miał realny efekt override'u. Od Next.js 15 to już domyślne zachowanie — ale zostawiony jawnie, bo dokumentuje intencję w miejscu wywołania, niezależnie od tego, czy ktoś kiedyś zmieni globalny default frameworka.
+
 ### `force-dynamic` na stronie głównej
 
-`app/page.tsx` wymusza `export const dynamic = "force-dynamic"`, więc strona nie jest prerenderowana w czasie builda, tylko renderowana przy każdym żądaniu.
+`app/page.tsx` wymusza `export const dynamic = "force-dynamic"`. Każdy fetch w `lib/api.ts` używa `cache: "no-store"`, więc strona i tak nigdy nie mogłaby być statyczna — `force-dynamic` deklaruje to jawnie zamiast polegać na automatycznym wykrywaniu przez Next.js.
 
-Powód: lista odcinków zależy od API CMS zagatowanego VPN-em, a build Dockera (etap `builder`) nie ma do niego dostępu — próba prerenderu w czasie builda skończyłaby się błędem fetch. Renderowanie per-request przenosi to wywołanie do środowiska runtime (kontener po starcie), które ma już dostęp do API.
+**Zweryfikowany root cause (nie VPN).** Pierwotnie zakładałem, że bez `force-dynamic` build wywala się, bo API CMS jest za VPN-em Polskiego Radia. Po sprawdzeniu bezpośrednio (`curl`, Node `fetch` z tej samej maszyny co build) endpoint listy odcinków okazał się w pełni publiczny i osiągalny bez VPN-a — to nie był powód błędu builda.
+
+Rzeczywista przyczyna: usunięcie `force-dynamic` powoduje próbę statycznego prerenderu `/` w czasie builda. Next.js wykrywa fetch z `cache: "no-store"` i rzuca wewnętrzny wyjątek kontrolny (`digest: "DYNAMIC_SERVER_USAGE"`) — to jego własny mechanizm sygnalizujący „ta trasa nie może być statyczna, oznacz ją jako dynamiczną". Blok `try { fetch(...) } catch { throw new ApiError(...) }` w `apiFetch` (`lib/api.ts`) łapał **każdy** błąd z `fetch`, w tym ten wewnętrzny sygnał, i zamieniał go na zwykły `ApiError` — Next.js przestawał rozpoznawać własny mechanizm bailoutu, traktował to jako prawdziwy, nieodwracalny błąd prerenderu i wywalał cały build.
+
+Naprawione: `catch` w `apiFetch` re-throwuje teraz wszystko, co nie jest `TypeError` — jedynym typem błędu, jakim `fetch()` faktycznie odrzuca dla prawdziwych awarii sieciowych, zgodnie ze specyfikacją WHATWG. Dzięki temu wewnętrzne sygnały Next.js (w tym `DYNAMIC_SERVER_USAGE`, a potencjalnie też `notFound()`/`redirect()`, gdyby ta funkcja była kiedyś użyta w podobnym kontekście) przechodzą nietknięte. Po tej poprawce build przechodzi nawet bez `force-dynamic` — Next sam wykrywa i oznacza trasę jako dynamiczną (`ƒ /` w outpucie builda).
+
+`force-dynamic` zostaje mimo to zadeklarowany jawnie: to solidniejsze rozwiązanie niż poleganie na automatycznej detekcji, która — jak pokazał ten błąd — jest krucha wobec dowolnego nadmiernie szerokiego `catch` gdziekolwiek w ścieżce wywołań.
+
+### `allowedDevOrigins` — test przez ngrok psuł "Pokaż więcej" (nie Server Actions)
+
+`next.config.ts` ma `allowedDevOrigins: ["*.ngrok-free.dev", "*.ngrok-free.app"]`. Powód: przy testowaniu aplikacji wystawionej publicznie przez ngrok (np. z telefonu) lokalnie wszystko działało bez zarzutu, ale przez tunel "Pokaż więcej" rzucało błędem.
+
+**Zweryfikowany mechanizm** (sprawdzone bezpośrednio w źródle `next`, `node_modules/next/dist/server/lib/router-utils/block-cross-site-dev.js`, plus live requesty do lokalnego dev-serwera): Next.js domyślnie blokuje w trybie dev cross-origin dostęp do własnych zasobów (`/_next/static/chunks/...`, websocket HMR) — jeśli `Origin` requestu nie jest `localhost` ani hostem z `allowedDevOrigins`, dev-serwer odpowiada `403` ("Blocked cross-origin request to Next.js dev resource"). Otwierając appkę przez publiczny URL ngroka, przeglądarka woła te zasoby z `Origin` równym hostowi ngroka — bez wpisu w `allowedDevOrigins` JS bundle nie ładował się poprawnie, co psuło hydration i każdą interakcję kliencką (load-more akurat był tym, co rzucało się w oczy jako pierwsze, ale problem nie był specyficzny dla paginacji).
+
+To **inny mechanizm** niż CSRF-check samych Server Actions (`node_modules/next/dist/server/app-render/action-handler.js`, sterowany osobnym kluczem `experimental.serverActions.allowedOrigins`, którego ten projekt nie ustawia) — ten drugi porównuje `Origin` z `Host`/`X-Forwarded-Host` requestu i przechodzi automatycznie, gdy się zgadzają, co przez poprawnie skonfigurowany tunel (przekazujący oryginalny host w `X-Forwarded-Host`) dzieje się samo, bez dodatkowej konfiguracji. Przejście na Server Actions samo w sobie nie naprawiło błędu z ngrokiem — zrobił to wpis w `allowedDevOrigins`.
 
 ### Przenoszenie pozycji odtwarzania przy zmianie formatu (`resumeTimeRef`)
 
