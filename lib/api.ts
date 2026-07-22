@@ -53,7 +53,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store", ...init });
-  } catch {
+  } catch (error) {
+    // fetch() only rejects with a TypeError for genuine network failures (WHATWG
+    // spec). Anything else — notably Next.js's internal DYNAMIC_SERVER_USAGE
+    // control-flow exception, thrown during static generation when it detects a
+    // no-store fetch — must be rethrown as-is. Swallowing it here would hide the
+    // digest Next relies on to bail out to dynamic rendering gracefully, turning
+    // an internal signal into a hard build failure.
+    if (!(error instanceof TypeError)) throw error;
     throw new ApiError("Nie udało się połączyć z API.");
   }
 
