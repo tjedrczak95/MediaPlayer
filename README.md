@@ -33,7 +33,7 @@ docker run -p 3000:3000 mediaplayer
 - **Next.js (App Router) + React + TypeScript**, stylowanie Tailwind CSS.
 - **Komponenty wg atomic design** (`components/atoms`, `components/molecules`, `components/organisms`) — od najprostszych elementów UI (`IconButton`, `SeekBar`) przez złożenia (`FormatSwitch`, `VolumeControl`) po całe sekcje (`EpisodeList`, `Player`).
 - **Warstwa danych** (`lib/api.ts`, `lib/types.ts`) izolowana od komponentów: pobieranie listy odcinków (`fetchEpisodes`) i pojedynczego zasobu media (`fetchMediaAsset`), z przepisywaniem prywatnego hosta CDN (`dev-cms-gateway...`) na publiczny (`cdn6...`), żeby zwrócone URI dało się odtworzyć z przeglądarki.
-- **Server Actions jako brama do API** (`lib/actions.ts`) — komponenty klienckie nie wywołują `lib/api.ts` bezpośrednio, tylko przez `"use server"` akcje. To środowisko testowe (`dev-proxy`) jest w praktyce publiczne i ma permisywne CORS (odbija dowolny nagłówek `Origin` z powrotem jako `Access-Control-Allow-Origin`) — nic nie blokowałoby wywołania go wprost z przeglądarki. Server Actions to świadoma decyzja architektoniczna, nie obejście realnej blokady: klient nigdy nie poznaje hosta CMS, logiki naprawiania odpowiedzi (`toPublicMediaUrl`, `fixTranscriptionUrl`) ani przyszłych wymogów autoryzacji — w docelowym środowisku, gdzie API faktycznie stoi za VPN-em Polskiego Radia, ta granica zadziała bez żadnej zmiany po stronie klienta.
+- **Server Actions jako brama do API** (`lib/actions.ts`) — komponenty klienckie nie wywołują `lib/api.ts` bezpośrednio, tylko przez `"use server"` akcje. Przy Server Action przeglądarka widzi tylko POST do własnej domeny z zakodowanym RSC payloadem — cała topologia integracji z CMS-em jest niewidoczna dla kogokolwiek inspekcjonującego ruch sieciowy.
 - **Player** (`components/organisms/Player/`) — logika odtwarzania wydzielona do hooka `usePlayerEngine.ts`, stan współdzielony przez `PlayerContext.ts`, warstwa prezentacji w `PlayerBar.tsx`.
 
 ## Czas poświęcony na zadanie
@@ -96,6 +96,14 @@ Rzeczywista przyczyna: usunięcie `force-dynamic` powoduje próbę statycznego p
 Naprawione: `catch` w `apiFetch` re-throwuje teraz wszystko, co nie jest `TypeError` — jedynym typem błędu, jakim `fetch()` faktycznie odrzuca dla prawdziwych awarii sieciowych, zgodnie ze specyfikacją WHATWG. Dzięki temu wewnętrzne sygnały Next.js (w tym `DYNAMIC_SERVER_USAGE`, a potencjalnie też `notFound()`/`redirect()`, gdyby ta funkcja była kiedyś użyta w podobnym kontekście) przechodzą nietknięte. Po tej poprawce build przechodzi nawet bez `force-dynamic` — Next sam wykrywa i oznacza trasę jako dynamiczną (`ƒ /` w outpucie builda).
 
 `force-dynamic` zostaje mimo to zadeklarowany jawnie: to solidniejsze rozwiązanie niż poleganie na automatycznej detekcji, która — jak pokazał ten błąd — jest krucha wobec dowolnego nadmiernie szerokiego `catch` gdziekolwiek w ścieżce wywołań.
+
+### `allowedDevOrigins` — test przez ngrok psuł "Pokaż więcej" (nie Server Actions)
+
+`next.config.ts` ma `allowedDevOrigins: ["*.ngrok-free.dev", "*.ngrok-free.app"]`. Powód: przy testowaniu aplikacji wystawionej publicznie przez ngrok (np. z telefonu) lokalnie wszystko działało bez zarzutu, ale przez tunel "Pokaż więcej" rzucało błędem.
+
+**Zweryfikowany mechanizm** (sprawdzone bezpośrednio w źródle `next`, `node_modules/next/dist/server/lib/router-utils/block-cross-site-dev.js`, plus live requesty do lokalnego dev-serwera): Next.js domyślnie blokuje w trybie dev cross-origin dostęp do własnych zasobów (`/_next/static/chunks/...`, websocket HMR) — jeśli `Origin` requestu nie jest `localhost` ani hostem z `allowedDevOrigins`, dev-serwer odpowiada `403` ("Blocked cross-origin request to Next.js dev resource"). Otwierając appkę przez publiczny URL ngroka, przeglądarka woła te zasoby z `Origin` równym hostowi ngroka — bez wpisu w `allowedDevOrigins` JS bundle nie ładował się poprawnie, co psuło hydration i każdą interakcję kliencką (load-more akurat był tym, co rzucało się w oczy jako pierwsze, ale problem nie był specyficzny dla paginacji).
+
+To **inny mechanizm** niż CSRF-check samych Server Actions (`node_modules/next/dist/server/app-render/action-handler.js`, sterowany osobnym kluczem `experimental.serverActions.allowedOrigins`, którego ten projekt nie ustawia) — ten drugi porównuje `Origin` z `Host`/`X-Forwarded-Host` requestu i przechodzi automatycznie, gdy się zgadzają, co przez poprawnie skonfigurowany tunel (przekazujący oryginalny host w `X-Forwarded-Host`) dzieje się samo, bez dodatkowej konfiguracji. Przejście na Server Actions samo w sobie nie naprawiło błędu z ngrokiem — zrobił to wpis w `allowedDevOrigins`.
 
 ### Przenoszenie pozycji odtwarzania przy zmianie formatu (`resumeTimeRef`)
 
